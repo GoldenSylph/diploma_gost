@@ -1,1 +1,153 @@
 \chapter{Конкретная система}
+\begin{lstlisting}[caption={Бизнес-логика MonoSingleton<T>},label=monoSingleton]
+public class MonoSingleton<T> : MonoBehaviour where T : MonoBehaviour
+{
+private static T s_Instance;
+private static bool s_IsDestroyed;
+public static T Instance
+{
+get
+{
+if (s_IsDestroyed)
+return null;
+if (s_Instance == null)
+{
+s_Instance = FindObjectOfType(typeof(T)) as T;
+
+if (s_Instance == null)
+{
+var gameObject = new GameObject(typeof(T).Name); 
+DontDestroyOnLoad(gameObject);
+s_Instance = gameObject.AddComponent(typeof(T)) as T;
+}
+}
+return s_Instance;
+...
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Метод инъекции зависимостей в экземпляр класса типа},label=injectType]
+public static void InjectType(Type t)
+{
+if (!ContainsAnyAttributeOfType(t.GetCustomAttributes(false), typeof(InjectableAttribute))) return;
+foreach (var fi in t.GetFields())
+{
+...
+if (temp.ComponentType == null && isScenePathEmpty) temp.ComponentType = fi.FieldType;
+...
+if (!isScenePathEmpty)
+{
+var hierarchyAndComponent = GetHierarchyPathAndComponentName(temp.ScenePath);
+if (!hierarchyAndComponent.Valid)
+{
+... continue;
+} 
+gameObjectContainingObjectToInject = GameObject.Find(hierarchyAndComponent.Result[0]);
+if (!gameObjectContainingObjectToInject)
+{
+... continue;
+}
+objectToInject = gameObjectContainingObjectToInject
+.GetComponent(hierarchyAndComponent.Result[1]);
+}
+else
+{
+objectToInject = FindObjectOfType(temp.ComponentType);
+if (objectToInject)
+{
+gameObjectContainingObjectToInject = GameObject.Find(objectToInject.name);
+}
+if (!gameObjectContainingObjectToInject && !temp.LookInScene)
+{
+objectToInject = Activator.CreateInstance(temp.ComponentType) as UnityEngine.Object;
+if (!objectToInject)
+{
+... continue;
+} ...
+}
+}
+if (!gameObjectContainingObjectToInject && objectToInject == null && temp.LookInScene)
+{
+... continue;
+}
+...
+dynamic typeToWhichInjected = FindObjectOfType(t.GetTypeInfo());
+if (typeToWhichInjected == null)
+{
+... continue;
+}
+fi.SetValue(typeToWhichInjected, objectToInject);
+...
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Бизнес-логика базовой системы интеграции},label=initializer]
+public class ATFInitializer : MonoBehaviour
+{
+private void Awake()
+{
+IATFInitializable[] ALL_SYSTEMS = {
+ATFQueueBasedRecorder.Instance, 
+ATFDictionaryBasedActionStorage.Instance,
+ATFPlayerPrefsBasedActionStorageSaver.Instance
+};
+foreach (IATFInitializable i in ALL_SYSTEMS)
+{
+i.Initialize();
+}
+DependencyInjector.Instance.Initialize("ATF");
+DependencyInjector.Instance.Inject();
+}
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Бизнес-логика системы симуляции и перехвата ввода},label=input]
+[Injectable]
+public class ATFInput : BaseInput
+{
+[Inject(typeof(ATFQueueBasedRecorder))]
+public static readonly IATFRecorder RECORDER;
+[Inject(typeof(ATFDictionaryBasedActionStorage))]
+public static readonly IATFActionStorage STORAGE;
+...
+private static object RealOrFakeInputOrRecord(object realInput, object fakeInput, object fip, FakeInput kind)
+{ ... }
+private static object GetCurrentFakeInput(FakeInput inputKind, object fip)
+{
+return STORAGE.GetPartOfRecord(inputKind, fip);
+}
+...
+private static T Intercept<T>(object realInput, FakeInput fakeInputKind, T defaultValue, object fakeInputParameter = null)
+{
+return IfExceptionReturnDefault(
+() => (T) RealOrFakeInputOrRecord(realInput, GetCurrentFakeInput(fakeInputKind, fakeInputParameter), fakeInputParameter, fakeInputKind), 
+defaultValue
+);
+}
+public static bool anyKeyDown => Intercept(Input.anyKeyDown, FakeInput.ANY_KEY_DOWN, false);
+...
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Интерфейc модуля записи},label=iRecorder]
+public interface IATFRecorder : IATFInitializable
+{
+bool IsRecording();
+bool IsPlaying();
+bool IsRecordingPaused();
+bool IsPlayPaused();
+void PlayRecord();
+void PausePlay();
+void ContinuePlay();
+void StopPlay();
+void StartRecord();
+void PauseRecord();
+void ContinueRecord();
+void StopRecord();
+void SetRecording(bool value);
+void SetPlaying(bool value);
+void SetRecordingPaused(bool value);
+void SetPlayPaused(bool value);
+void Record(FakeInput kind, object input, object fakeInputParameter);
+}
+\end{lstlisting}

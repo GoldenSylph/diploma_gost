@@ -7,33 +7,11 @@
 \ifx\undefined\BibAnnote\long\def\BibAnnote#1{}\else\fi
 \ifx\undefined\BibEmph\def\BibEmph#1{\emph{#1}}\else\fi
 
-\bibitem{Berkutov}
-\selectlanguageifdefined{russian}
-\BibEmph{Беркутов,~А.М.} Системы комплекстной
-  электромагнитотерапии~/ А.М.~Беркутов. ---
-\newblock М.: Бином, 2000.
-
-\bibitem{Zolotuhina_Ulaschik}
-\selectlanguageifdefined{russian}
-\BibEmph{И.Е.~Золотухина,~В.С.~Улащик}. Основы
-  импульсной магнитотерапии~/
-  В.С.~Улащик~И.Е.~Золотухина. ---
-\newblock Витебск: Витебская областная
-  типография, 2008.
-
-\bibitem{Ulaschik_Physio}
-\selectlanguageifdefined{russian}
-\BibEmph{Улащик,~В.С.} Физиотерапия.
-  Универсальная медицинская энциклопедия~/
-  В.С.~Улащик. ---
-\newblock Минск: Книжный дом, 2008.
-
-\bibitem{Gular_Limpanskiy}
-\selectlanguageifdefined{russian}
-\BibEmph{С.А.~Гуляр,~Ю.П.~Лиманский}. Постоянные
-  магнитные поля и их применение в
-  медицине~/ Ю.П.~Лиманский~С.А.~Гуляр. ---
-\newblock Киев: Ин-т физиол. им. А.А. Богомольца
-  НАН Украины, 2006.
+\bibitem{solid}
+\selectlanguageifdefined{english}
+\BibEmph{Robert C.~Martin,~James W.~Newkirk}. Fast software development.
+  Principles, examples, practice~/ James W.~Newkirk~Robert C.~Martin,
+  Robert~S.~Koss. ---
+\newblock 2004.
 
 \end{thebibliography}
