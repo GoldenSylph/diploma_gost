@@ -1,25 +1,58 @@
 \chapter{Листинги}
+\begin{lstlisting}[caption={Интерфейс модуля загрузчика хранилища записей},label=iSaver]
+public interface IATFActionStorageSaver : IATFInitializable
+{
+	void SaveRecord();
+	void LoadRecord();
+	void ScrapRecord();
+	
+	IEnumerable GetActions();
+	void SetActions(IEnumerable actionEnumerable);
+	List<TreeViewItem> GetSavedNames();
+	List<TreeViewItem> GetSavedRecordDetails(string recordName);
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Интерфейс модуля хранилища записей},label=iStorage]
+public interface IATFActionStorage : IATFInitializable
+{
+	object GetPartOfRecord(FakeInput kind, object fakeInputParameter);
+	void Enqueue(string recordName, FakeInput kind, object fakeInputParameter, AtfAction atfAction);
+	AtfAction Dequeue(string recordName, FakeInput kind, object fakeInputParameter);
+	AtfAction Peek(string recordName, FakeInput kind, object fakeInputParameter);
+	bool PrepareToPlayRecord(string recordName);
+	void ClearPlayStorage();
+	void SaveStorage();
+	void LoadStorage();
+	void ScrapSavedStorage();
+	List<TreeViewItem> GetSavedRecordNames();
+	List<TreeViewItem> GetCurrentRecordNames();
+	List<TreeViewItem> GetCurrentActions(string recordName);
+	List<TreeViewItem> GetSavedActions(string recordName);
+}
+\end{lstlisting}
+
 \begin{lstlisting}[caption={Бизнес-логика MonoSingleton<T>},label=monoSingleton]
 public class MonoSingleton<T> : MonoBehaviour where T : MonoBehaviour
 {
-private static T s_Instance;
-private static bool s_IsDestroyed;
-public static T Instance
-{
-get
-{
-if (s_IsDestroyed)
-return null;
-if (s_Instance == null)
-{
-s_Instance = FindObjectOfType(typeof(T)) as T;
-
-if (s_Instance == null)
-{
-var gameObject = new GameObject(typeof(T).Name); 
-DontDestroyOnLoad(gameObject);
-s_Instance = gameObject.AddComponent(typeof(T)) as T;
-}
+	private static T s_Instance;
+	private static bool s_IsDestroyed;
+	public static T Instance
+	{
+	get
+	{
+	if (s_IsDestroyed)
+	return null;
+	if (s_Instance == null)
+	{
+	s_Instance = FindObjectOfType(typeof(T)) as T;
+	
+	if (s_Instance == null)
+	{
+	var gameObject = new GameObject(typeof(T).Name); 
+	DontDestroyOnLoad(gameObject);
+	s_Instance = gameObject.AddComponent(typeof(T)) as T;
+	}
 }
 return s_Instance;
 ...
@@ -151,3 +184,59 @@ void SetPlayPaused(bool value);
 void Record(FakeInput kind, object input, object fakeInputParameter);
 }
 \end{lstlisting}
+
+\begin{lstlisting}[caption={Пользовательский модуль ввода для ATFInput},label=inputModule]
+namespace ATF
+{
+public class ATFStandaloneInputManager : StandaloneInputModule
+{
+protected override void Start()
+{
+base.Start();
+m_InputOverride = gameObject.AddComponent<ATFInput>();
+DependencyInjector
+.InjectType(m_InputOverride.GetType());
+}
+...
+}
+\end{lstlisting}
+
+\begin{algorithm}
+	\caption{Работа инициализатора решения}\label{alg:initializer}
+	\begin{algorithmic}
+		\State $allSystems \gets IAtfInitializable[3]$
+		\State $allSystems[0] \gets Recorder.Instance$
+		\State $allSystems[1] \gets Storage.Instance$
+		\State $allSystems[2] \gets Saver.Instance$
+		\ForAll{system in allSystems} \State{system.Initialize()} \EndFor
+		\State $DependencyInjector.InjectIntoNamespace('ATF')$
+	\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+	\caption{Перехват и симуляция для Input.anyKeyDown}\label{alg:input}
+	\begin{algorithmic}
+		\Procedure{AtfInput.anyKeyDown}{}
+		\State \textbf{return} Intercept(Input.anyKeyDown, 
+		\State GetCurrentFakeInput(), 
+		\State \textbf{false})
+		\EndProcedure
+		\Procedure{Intercept}{RealInput, FakeInput, DefaultValue}
+		\If{FakeInput is acquired}
+		\State \textbf{return} RealOrFakeInputOrRecord(RealInput, FakeInput)
+		\Else
+		\State \textbf{return} DefaultValue
+		\EndIf
+		\EndProcedure
+		\Procedure{RealOrFakeInputOrRecord}{RealInput, FakeInput}
+		\If{is Recording}
+		\State Recorder.Record(RealInput)
+		\State \textbf{return} RealInput
+		\ElsIf{is Playing}
+		\State \textbf{return} FakeInput
+		\Else
+		\State \textbf{return} RealInput
+		\EndIf
+		\EndProcedure
+	\end{algorithmic}
+\end{algorithm}

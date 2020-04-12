@@ -22,49 +22,9 @@
 
 \section{Создание базовой системы интеграции}
 \subsection{Реализация базового инициализатора}
-Для легкой интеграции данного продукта был реализован префаб пустого экземпляра класса GameObject, композиция которого содержит в себе единственный компонент (см. листинг \ref{initializer}) -- его работа  иллюстрируется алгоритмом \ref{alg:initializer}. 
-
-\begin{algorithm}
-	\caption{Работа инициализатора решения}\label{alg:initializer}
-	\begin{algorithmic}
-		\State $allSystems \gets IAtfInitializable[3]$
-		\State $allSystems[0] \gets Recorder.Instance$
-		\State $allSystems[1] \gets Storage.Instance$
-		\State $allSystems[2] \gets Saver.Instance$
-		\ForAll{system in allSystems} \State{system.Initialize()} \EndFor
-		\State $DependencyInjector.InjectIntoNamespace('ATF')$
-	\end{algorithmic}
-\end{algorithm}
+Для легкой интеграции данного продукта был реализован префаб пустого экземпляра класса GameObject, композиция которого содержит в себе единственный компонент (см. листинг \ref{initializer}) -- его работа  иллюстрируется алгоритмом \ref{alg:initializer}.
 
 Механизм работы заключается в следующем: каждая из систем наследуется от интерфейса, который используется в зависимых классах и куда происходит инъекция. Сделано это было с требованием последнего принципа SOLID. Данный интерфейс также наследуется от другого интерфейса IATFInitializable, который содержит в себе единственный метод, отвечающий за инициализацию всех параметров системы после её создания на сцене путем вызова поля Instance. Далее происходит инициализация DI контейнера, настройка его на инъекцию в пространство имён ATF и вызов самой инъекции.
-
-\begin{algorithm}
-	\caption{Перехват и симуляция для Input.anyKeyDown}\label{alg:input}
-	\begin{algorithmic}
-		\Procedure{AtfInput.anyKeyDown}{}
-		\State \textbf{return} Intercept(Input.anyKeyDown, 
-		\State GetCurrentFakeInput(), 
-		\State \textbf{false})
-		\EndProcedure
-		\Procedure{Intercept}{RealInput, FakeInput, DefaultValue}
-		\If{FakeInput is acquired}
-		\State \textbf{return} RealOrFakeInputOrRecord(RealInput, FakeInput)
-		\Else
-		\State \textbf{return} DefaultValue
-		\EndIf
-		\EndProcedure
-		\Procedure{RealOrFakeInputOrRecord}{RealInput, FakeInput}
-		\If{is Recording}
-		\State Recorder.Record(RealInput)
-		\State \textbf{return} RealInput
-		\ElsIf{is Playing}
-		\State \textbf{return} FakeInput
-		\Else
-		\State \textbf{return} RealInput
-		\EndIf
-		\EndProcedure
-	\end{algorithmic}
-\end{algorithm}
 
 \subsection{Реализация расширенного инициализатора}
 Описание атрибутного инициализатора
@@ -73,22 +33,6 @@
 Далее представлен алгоритм \ref{alg:input}, составляющий бизнес-процесс класса адаптера, в котором и осуществляется перехват и вычисление относительно текущего состояния систем управления записью и хранилища (см. листинг \ref{input}). Кратко описывая принцип работы, можно выделить три ключевых метода: $Intercept, GetCurrentFakeInput, RealOrFakeInputOrRecord$. Они вызываются стеком, начиная с первого метода. 
 
 Первым делом осуществляется перехват (в данном примере) входных данных Input.anyKeyDown, затем происходит вычисление записанного результата из STORAGE с помощью метода $GetCurrentFakeInput$, независимо от того, записывается ли процесс или проигрывается. Далее происходит решение, что выдавать на выход функции anyKeyDown в зависимости от того, в каком сейчас состоянии проигрыватель. Если происходит проигрывание, то выдается результат, который был сохранен в хранилище, если же происходит запись, то выдается результат Input.anyKeyDown и он же записывается в хранилище, а если ничего не происходит, то просто выдается результат, как если бы прослойки для записи вообще не существовало.
-
-\begin{lstlisting}[caption={Пользовательский модуль ввода для ATFInput},label=inputModule]
-namespace ATF
-{
-public class ATFStandaloneInputManager : StandaloneInputModule
-{
-protected override void Start()
-{
-base.Start();
-m_InputOverride = gameObject.AddComponent<ATFInput>();
-DependencyInjector
-.InjectType(m_InputOverride.GetType());
-}
-...
-}
-\end{lstlisting}
 
 \subsection{Реализация расширенного модуля ввода}
 Этот пользовательский модуль (см. листинг \ref{inputModule}) был спроектирован с целью дальнейшего расширения функционала по перехвату на внутреннюю систему обмена сообщениями внутри \textit{Unity}. Можно заметить, где конкретно реализован шаблон проектирования Bridge -- внутри StandaloneInputModule уже созданы события и описания поведения для работы с сообщениями ввода с периферийных устройств. Именно эти события и будут в будущем подвержены перехвату.
@@ -102,38 +46,19 @@ DependencyInjector
 \subsection{Реализация системы хранилища действий}
 За основу поведения системы хранилища действий был взят интерфейс IATFActionStorage (см. листинг \ref{iStorage}), регламентирующий поведение книжной полки (статичного хранилища данных).
 
-\begin{lstlisting}[caption={Интерфейс модуля хранилища записей},label=iStorage]
-public interface IATFActionStorage : IATFInitializable
-{
-object GetPartOfRecord(FakeInput kind, object fakeInputParameter);
-void Enqueue(string recordName, FakeInput kind, object fakeInputParameter, AtfAction atfAction);
-AtfAction Dequeue(string recordName, FakeInput kind, object fakeInputParameter);
-AtfAction Peek(string recordName, FakeInput kind, object fakeInputParameter);
-bool PrepareToPlayRecord(string recordName);
-void ClearPlayStorage();
-void SaveStorage();
-void LoadStorage();
-void ScrapSavedStorage();
-List<TreeViewItem> GetSavedRecordNames();
-List<TreeViewItem> GetCurrentRecordNames();
-List<TreeViewItem> GetCurrentActions(string recordName);
-List<TreeViewItem> GetSavedActions(string recordName);
-}
-\end{lstlisting}
 Принцип работы довольно прост, реализация данного хранилища базируется на вложенной структуре данных ``Словарь'' или иногда его называют хеш-таблицей. Внутри системы находятся поля следующих типов:
-\begin{enumerate}
+\begin{itemize}
 	\item 
 	\begin{verbatim}
-	Dictionary<string, 
-	Dictionary<FakeInput, 
-	Dictionary<object, Queue<Action>>>>;
+	Dictionary<string, Dictionary<FakeInput, 
+		Dictionary<object, Queue<Action>>>>;
 	\end{verbatim}
 	\item 
 	\begin{verbatim}
-	Dictionary<FakeInput, 
-	Dictionary<object, Queue<Action>>>.
+	Dictionary<FakeInput, Dictionary<object, 
+		Queue<Action>>>.
 	\end{verbatim}
-\end{enumerate}
+\end{itemize}
 
 Первый тип -- это основное хранилище, туда происходит загрузка свежезаписанных сценариев, а также из жесткой памяти, например, из реестра. Второй тип -- это та самая переменная, в которую копируется очередь определенного типа ввода и которая опустошается на протяжении каждого перехватываемого вызова проверки ввода. Другие же методы отвечают за операции управления над самим хранилищем.
 
@@ -142,24 +67,8 @@ List<TreeViewItem> GetSavedActions(string recordName);
 \subsection{Реализация системы сохранения и загрузки хранилища действий}
 Система сохранения и загрузки является PAC компонентом, она используется напрямую только хранилищем записанных действий. Интерфейс IATFActionStorageSaver (см. листинг \ref{iSaver}) отвечает за реализацию системы сохранения и загрузки хранилища в потенциально любой носитель информации.
 
-\begin{lstlisting}[caption={Интерфейс модуля загрузчика хранилища записей},label=iSaver]
-public interface IATFActionStorageSaver : IATFInitializable
-{
-void SaveRecord();
-void LoadRecord();
-void ScrapRecord();
-
-IEnumerable GetActions();
-void SetActions(IEnumerable actionEnumerable);
-List<TreeViewItem> GetSavedNames();
-List<TreeViewItem> GetSavedRecordDetails(string recordName);
-}
-\end{lstlisting}
-
 Реализация интерфейса (см. листинг \ref{iSaver}) основана на работе с реестром через встроенный в стандартную библиотеку \textit{Unity} класс PlayerPrefs, обычно отвечающий за сохранение небольшой по количеству информации. Для сохранения сложных объектов эта реализация использует сериализацию в JSON объект всего хранилища либо же только одной записи, в зависимости от метода, который вызывается. Поведение реализации похоже на поведение недетерминированного автомата, по уже вышеупомянутым причинам.
-
-\subsection{Реализация системы упаковки данных хранилища}
 
 \subsection{Реализация системы интеграции в готовую кодовую базу}
 
-\subsection{Реализация системы автоматической интеграции в готовую кодовую базу}
+\subsection{Реализация системы упаковки данных хранилища}

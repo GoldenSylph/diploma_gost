@@ -9,9 +9,27 @@
 
 \bibitem{solid}
 \selectlanguageifdefined{english}
-\BibEmph{Robert C.~Martin,~James W.~Newkirk}. Fast software development.
-  Principles, examples, practice~/ James W.~Newkirk~Robert C.~Martin,
-  Robert~S.~Koss. ---
+\BibEmph{Martin,~Robert~C.} Fast software development. Principles, examples,
+  practice~/ Robert~C.~Martin, James~W.~Newkirk, Robert~S.~Koss. ---
 \newblock 2004.
+
+\bibitem{dry}
+\selectlanguageifdefined{english}
+\BibEmph{Jeremy~Miller,~найти про~DRY}. The Don’t Repeat Yourself
+  Principle and the Wormhole Anti-Pattern~/ найти
+  про~DRY~Jeremy~Miller. ---
+\newblock 2007.
+
+\bibitem{razor}
+\selectlanguageifdefined{english}
+Occam's Razor Information Processing Letters 24(6)~/ Anselm~Blumer,
+  Andrzej~Ehrenfeucht, David~Hasler, Manfred~K.~Warmuth. ---
+\newblock 1987. ---
+\newblock Pp.~377--380.
+
+\bibitem{dots}
+\selectlanguageifdefined{russian}
+High-performance multithreaded stack of unity information-oriented
+  technologies. \BibUrl{ https://unity.com/ru/dots}.
 
 \end{thebibliography}
