@@ -1,4 +1,203 @@
 \chapter{Листинги}
+
+\begin{lstlisting}[caption={Исходный класса обработки веб-страниц проектов с сайта GitHub.com},label=spider]
+
+# -*- coding: utf-8 -*-
+import scrapy
+import requests
+import json
+import base64
+import re
+import time
+import pandas as pd
+class GithubSpiderSpider(scrapy.Spider):
+
+	name = 'github-spider'
+	main_data = pd.DataFrame(columns=['repo_name', 'method_invocations'])
+	file_name = 'main_data_most_forks.csv'
+	config = False
+	recently_updated_url = 
+	'https://github.com/search?o=desc&p={}
+		&q=unity+language%3AC%23&s=updated&type=Repositories'
+	most_stars_url = 
+	'https://github.com/search?o=desc&p={}
+		&q=unity+language%3AC%23&s=stars&type=Repositories'
+	most_forks_url = 
+	'https://github.com/search?o=desc&p={}
+		&q=unity+language%3AC%23&s=forks&type=Repositories'
+	best_match_url = 
+	'https://github.com/search?p={}
+		&q=language%3Acsharp+unity&type=Repositories'
+
+	def start_requests(self):
+		urls = [self.most_forks_url.format(i + 1) for i in range(101)]
+		for url in urls:
+			yield scrapy.Request(url=url, callback=self.parse)
+	
+	def auth_data(self):
+		if self.config:
+			return (self.config['login'], self.config['password'])
+		with open('github_config.json', 'r', encoding='utf-8') as github_file:
+			self.config = json.load(github_file)
+			return (self.config['login'], self.config['password'])
+		
+	def get(self, url):
+		result = requests.get(url, auth=self.auth_data())
+		if result.status_code == 403:
+			header_name = 'X-RateLimit-Reset'
+			if header_name in result.headers:
+				reset_time = float(result.headers[header_name])
+				sleep_time = reset_time - time.time()
+				if sleep_time < 0:
+					self.logger.info('Sleep time is negative, adjusting to 1...')
+					sleep_time = 1
+				self.logger.info('Exceeded rate limit. Waiting for: {}'.format(sleep_time))
+				time.sleep(sleep_time)
+				result = requests.get(url, auth=auth_data)
+			else:
+				return False
+				self.logger.info('{}, status: {}'.format(result.headers, result.status_code))
+		return result
+	
+	def get_json(self, response):
+		try:
+			return response.json()
+		except:
+			self.logger.info(traceback.format_exc())
+			return False
+	
+	def closed(self, reason):
+		self.logger.info('Done. Specified reason: {}'.format(str(reason)))
+	
+	def parse(self, response):
+		repo_names = [r[1:] for r in response.xpath('//div[@class="f4 text-normal"]/a/@href').extract()]
+		for repo_name in repo_names:
+		self.logger.info('Working with repo: {}'.format(repo_name))
+		code_search_url = 'https://api.github.com/search/code?
+			q=Input+in:file+language:csharp+repo:{}'.format(repo_name)
+		code_response = self.get(code_search_url)
+		if not code_response:
+			self.logger.info('something wrong with header, continue...')
+			continue
+		code_data = self.get_json(code_response)
+		if not code_data:
+			continue
+		method_invokations_count = 0
+		code_urls = [code_item['url'] for code_item in code_data['items']]
+		for code_url in code_urls:
+			self.logger.info('Source url: {}'.format(code_url))
+			source_details_response = self.get(code_url)
+			if not source_details_response:
+				self.logger.info('something wrong with header in source details response, continue...')
+				continue
+			source_details_data = self.get_json(source_details_response)
+			if not source_details_data:
+				continue
+			if 'message' in source_details_data:
+				self.logger.info(source_details_data['message'])
+				continue
+			try:
+				source = 
+				base64.b64decode(source_details_data['content']
+					.encode('utf-8')).decode('utf-8')
+			except:
+				self.logger.info(traceback.format_exc())
+				continue
+			method_invokations_count_in_source = 
+				len(re.findall(r'[(\[(\s,=\+\-\*/\?&|]Input\.', source))
+			method_invokations_count += method_invokations_count_in_source
+		new_data = pd.DataFrame({'repo_name': repo_name, 'method_invocations': method_invokations_count}, index=[0])
+		self.main_data = self.main_data.append(new_data, ignore_index=True)
+		self.logger.info('Data gathered:\n{}'.format(new_data))
+		self.main_data.to_csv(self.file_name)
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Утилита для сбора собранных spider-программой данных воедино},label=form_main_data]
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+sns.set(style="white", context="talk")
+whole_data = pd.DataFrame(columns=['repo_name', 'method_invocations', 'filter'])
+metadata = [('main_data_best_match.csv', 'best_match'),
+('main_data_most_stars.csv', 'most_stars'),
+('main_data_most_forks.csv', 'most_forks'),
+('main_data_recently_updated.csv', 'recently_updated')]
+for data in metadata:
+	new_data = pd.read_csv(data[0], index_col=0)
+	new_data['filter'] = data[1]
+	whole_data = whole_data.append(new_data, ignore_index=True)
+whole_data['filter'] = whole_data['filter'] + whole_data.duplicated(subset='repo_name').apply(str)
+print(whole_data)
+whole_data.to_csv('main_data.csv')
+sns.scatterplot(x=whole_data.index, y='method_invocations', data=whole_data, hue='filter')
+plt.show()
+plt.clf()
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Утилита для проведения бутстрапа и параллельных расчётов границ интервала среднего},label=bootstrap_experiment]
+
+import math as m
+import pandas as pd
+import multiprocessing as mp
+import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib
+
+def stat(x):
+return round(x.mean(), 3)
+
+if __name__ == '__main__':
+
+	whole_data = pd.read_csv('main_data.csv')
+	
+	R = 99509
+	n = len(whole_data)
+	confidence = 90
+	specific_data = whole_data['method_invocations']
+	
+	process_count = mp.cpu_count()
+	chunk_size = 1000
+	print('Processes: {}, chunksize: {}'.format(process_count, chunk_size))
+	
+	with mp.Pool(process_count) as pool:
+		boot_data =
+		pd.Series(pool.map(stat, 
+			[specific_data.sample(n, replace=True) for i in range(R)], 
+				chunksize=chunk_size))
+	
+	boot_data_len = len(boot_data)
+	cut_percent = m.ceil((1 - confidence / 100) / 2)
+	cut = round(boot_data_len * cut_percent / 100)
+	middle_cuts = [cut, boot_data_len - cut]
+	tail_cut = boot_data_len - cut
+	print('boot_data_len: {}, cut_percent: {}, cut: {}, middle_cuts: {}, tail_cut: {}'.format(boot_data_len, cut_percent, cut, middle_cuts, tail_cut))
+	head = boot_data[:cut]
+	middle = boot_data[middle_cuts[0]:middle_cuts[1]]
+	tail = boot_data[tail_cut:]
+	main_data = pd.DataFrame(columns=['stat', 'kind'])
+	main_data = main_data.append(pd.DataFrame({'stat': head, 'kind': 'head'}), ignore_index=True)
+	main_data = main_data.append(pd.DataFrame({'stat': middle, 'kind': 'interval'}), ignore_index=True)
+	main_data = main_data.append(pd.DataFrame({'stat': tail, 'kind': 'tail'}), ignore_index=True)
+	sns.jointplot(x=main_data.index, y=main_data['stat'], kind='hex')
+	plt.axhline(y=main_data.at[cut, 'stat'], color='r')
+	plt.axhline(y=main_data.at[tail_cut, 'stat'], color='r')
+	plt.text(cut, main_data.at[cut, 'stat'] + 0.01, 'L: {}'.format(main_data.at[cut, 'stat']), fontsize=12)
+	plt.text(cut, main_data.at[tail_cut, 'stat'] + 0.01, 'U: {}'.format(main_data.at[tail_cut, 'stat']), fontsize=12)
+	plot_backend = matplotlib.get_backend()
+	mng = plt.get_current_fig_manager()
+	if plot_backend == 'TkAgg':
+		mng.resize(*mng.window.maxsize())
+	elif plot_backend == 'wxAgg':
+		mng.frame.Maximize(True)
+	elif plot_backend == 'Qt4Agg':
+		mng.window.showMaximized()
+	plt.savefig('experiment.png')
+	plt.show()
+
+
+\end{lstlisting}
+
+
 \begin{lstlisting}[caption={Интерфейс модуля загрузчика хранилища записей},label=iSaver]
 public interface IATFActionStorageSaver : IATFInitializable
 {
@@ -198,6 +397,40 @@ DependencyInjector
 .InjectType(m_InputOverride.GetType());
 }
 ...
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Интерфейс модуля интеграции в готовую кодовую базу},label=iIntegrator]
+using System.Collections.Generic;
+using ATF.Scripts.Helper;
+
+namespace ATF.Scripts.Integration.Interfaces
+{
+public interface IAtfIntegrator : IAtfGetSetRecordName
+{
+void SetUris(IEnumerable<string> filePaths);
+void Integrate();
+void IntegrateAndReplace();
+void IntegrateAll();
+void SaveUris();
+IEnumerable<string> LoadUris();
+}
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Интерфейс модуля упаковки хранилища данных},label=iPacker]
+using System.Collections.Generic;
+using ATF.Scripts.Storage.Utils;
+using UnityEngine;
+
+namespace ATF.Scripts.Storage.Interfaces
+{
+public interface IAtfPacker
+{
+List<Record> Pack(Dictionary<string, Dictionary<FakeInput, Dictionary<object, AtfActionRleQueue>>> input);
+Dictionary<string, Dictionary<FakeInput, Dictionary<object, AtfActionRleQueue>>> Unpack(Slot slot);
+string ValidatePacked(List<Record> packed);
+}
 }
 \end{lstlisting}
 
