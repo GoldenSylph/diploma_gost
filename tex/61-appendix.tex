@@ -335,12 +335,16 @@ DependencyInjector.Instance.Inject();
 
 \begin{lstlisting}[caption={Бизнес-логика системы симуляции и перехвата ввода},label=input]
 [Injectable]
-public class ATFInput : BaseInput
+[Serializable]
+[AtfSystem]
+public class ATFInput : MonoSingleton<T>, IBaseInput
 {
 [Inject(typeof(ATFQueueBasedRecorder))]
 public static readonly IATFRecorder RECORDER;
 [Inject(typeof(ATFDictionaryBasedActionStorage))]
 public static readonly IATFActionStorage STORAGE;
+[Inject(typeof(BaseInput))]
+public static readonly BaseInput BASE_INPUT;
 ...
 private static object RealOrFakeInputOrRecord(object realInput, object fakeInput, object fip, FakeInput kind)
 { ... }
@@ -349,12 +353,18 @@ private static object GetCurrentFakeInput(FakeInput inputKind, object fip)
 return STORAGE.GetPartOfRecord(inputKind, fip);
 }
 ...
-private static T Intercept<T>(object realInput, FakeInput fakeInputKind, T defaultValue, object fakeInputParameter = null)
+private static T Intercept<T>(T realInput, FakeInput fakeInputKind, object 	fakeInputParameter = null)
 {
-return IfExceptionReturnDefault(
-() => (T) RealOrFakeInputOrRecord(realInput, GetCurrentFakeInput(fakeInputKind, fakeInputParameter), fakeInputParameter, fakeInputKind), 
-defaultValue
-);
+    if (fakeInputParameter == null)
+    {
+        fakeInputParameter = "EMPTY FAKE INPUT PARAMETER";
+    }
+    dynamic result = RealOrFakeInputOrRecord(realInput, fakeInputParameter, fakeInputKind);
+    if (result is string)
+    {
+        Debug.Log(result);
+    }
+    return result;
 }
 public static bool anyKeyDown => Intercept(Input.anyKeyDown, FakeInput.ANY_KEY_DOWN, false);
 ...
@@ -362,40 +372,48 @@ public static bool anyKeyDown => Intercept(Input.anyKeyDown, FakeInput.ANY_KEY_D
 \end{lstlisting}
 
 \begin{lstlisting}[caption={Интерфейc модуля записи},label=iRecorder]
-public interface IATFRecorder : IATFInitializable
+using ATF.Scripts.Helper;
+
+namespace ATF.Scripts.Recorder
 {
-bool IsRecording();
-bool IsPlaying();
-bool IsRecordingPaused();
-bool IsPlayPaused();
-void PlayRecord();
-void PausePlay();
-void ContinuePlay();
-void StopPlay();
-void StartRecord();
-void PauseRecord();
-void ContinueRecord();
-void StopRecord();
-void SetRecording(bool value);
-void SetPlaying(bool value);
-void SetRecordingPaused(bool value);
-void SetPlayPaused(bool value);
-void Record(FakeInput kind, object input, object fakeInputParameter);
+    public interface IAtfRecorder : IAtfGetSetRecordName
+    {
+        bool IsRecording();
+        bool IsPlaying();
+        bool IsRecordingPaused();
+        bool IsPlayPaused();
+        bool IsInputStopped();
+        void PlayRecord();
+        void PausePlay();
+        void ContinuePlay();
+        void StopPlay();
+        void StartRecord();
+        void PauseRecord();
+        void ContinueRecord();
+        void StopRecord();
+        void SetRecording(bool value);
+        void SetPlaying(bool value);
+        void SetRecordingPaused(bool value);
+        void SetPlayPaused(bool value);
+        void SetInputStopped(bool value);
+        void Record(FakeInput kind, object input, object fakeInputParameter);
+        object GetLastInput(FakeInput kind, object fakeInputParameter);
+        void SetLastInput(FakeInput kind, object realInput, object fakeInputParameter);
+    }
 }
 \end{lstlisting}
 
 \begin{lstlisting}[caption={Пользовательский модуль ввода для ATFInput},label=inputModule]
 namespace ATF
 {
-public class ATFStandaloneInputManager : StandaloneInputModule
-{
-protected override void Start()
-{
-base.Start();
-m_InputOverride = gameObject.AddComponent<ATFInput>();
-DependencyInjector
-.InjectType(m_InputOverride.GetType());
-}
+	public class ATFStandaloneInputManager : StandaloneInputModule
+	{
+		protected override void Start()
+        {
+            base.Start();
+            m_InputOverride = AtfInput.BASE_INPUT;
+            DependencyInjector.InjectType(m_InputOverride.GetType());
+        }
 ...
 }
 \end{lstlisting}
@@ -406,15 +424,15 @@ using ATF.Scripts.Helper;
 
 namespace ATF.Scripts.Integration.Interfaces
 {
-public interface IAtfIntegrator : IAtfGetSetRecordName
-{
-void SetUris(IEnumerable<string> filePaths);
-void Integrate();
-void IntegrateAndReplace();
-void IntegrateAll();
-void SaveUris();
-IEnumerable<string> LoadUris();
-}
+	public interface IAtfIntegrator : IAtfGetSetRecordName
+	{
+		void SetUris(IEnumerable<string> filePaths);
+		void Integrate();
+		void IntegrateAndReplace();
+		void IntegrateAll();
+		void SaveUris();
+		IEnumerable<string> LoadUris();
+	}
 }
 \end{lstlisting}
 
@@ -422,15 +440,14 @@ IEnumerable<string> LoadUris();
 using System.Collections.Generic;
 using ATF.Scripts.Storage.Utils;
 using UnityEngine;
-
 namespace ATF.Scripts.Storage.Interfaces
 {
-public interface IAtfPacker
-{
-List<Record> Pack(Dictionary<string, Dictionary<FakeInput, Dictionary<object, AtfActionRleQueue>>> input);
-Dictionary<string, Dictionary<FakeInput, Dictionary<object, AtfActionRleQueue>>> Unpack(Slot slot);
-string ValidatePacked(List<Record> packed);
-}
+	public interface IAtfPacker
+	{
+		List<Record> Pack(Dictionary<string, Dictionary<FakeInput, Dictionary<object, AtfActionRleQueue>>> input);
+		Dictionary<string, Dictionary<FakeInput, Dictionary<object, AtfActionRleQueue>>> Unpack(Slot slot);
+		string ValidatePacked(List<Record> packed);
+	}
 }
 \end{lstlisting}
 
@@ -451,15 +468,14 @@ string ValidatePacked(List<Record> packed);
 	\begin{algorithmic}
 		\Procedure{AtfInput.anyKeyDown}{}
 		\State \textbf{return} Intercept(Input.anyKeyDown, 
-		\State GetCurrentFakeInput(), 
-		\State \textbf{false})
+		\State GetCurrentFakeInput())
 		\EndProcedure
-		\Procedure{Intercept}{RealInput, FakeInput, DefaultValue}
-		\If{FakeInput is acquired}
-		\State \textbf{return} RealOrFakeInputOrRecord(RealInput, FakeInput)
-		\Else
-		\State \textbf{return} DefaultValue
+		\Procedure{Intercept}{RealInput, FakeInput}
+		\State \textbf{dynamic} result := RealOrFakeInputOrRecord(RealInput, FakeInput)
+		\If{result is string}
+		\State \textbf{throw} new Exception(\$"Deserialization failed: \{result\}")
 		\EndIf
+		\State \textbf{return} result
 		\EndProcedure
 		\Procedure{RealOrFakeInputOrRecord}{RealInput, FakeInput}
 		\If{is Recording}
