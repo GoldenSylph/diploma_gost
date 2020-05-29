@@ -467,7 +467,9 @@
 \def\fnum@table{\tablename~\thetable}
 
 %  4.3.4 - 4.1.14 Приложения
-\renewcommand\appendix{\par
+\addto\captionsrussian{\def\appendixname{{\CYRP\CYRR\CYRI\CYRL\CYRO\CYRZH\CYRE\CYRN\CYRI\CYRE}}}
+\renewcommand\appendix{
+ \par
  \setcounter{secnumdepth}{4}
  \setcounter{chapter}{0}%
  \EqInChapter\PicInChapter\TableInChapter%

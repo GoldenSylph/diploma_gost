@@ -1,6 +1,5 @@
 \chapter{Листинги}
-
-\begin{lstlisting}[caption={Исходный класса обработки веб-страниц проектов с сайта GitHub.com},label=spider]
+\begin{lstlisting}[caption={Исходный код класса обработки веб-страниц проектов с сайта GitHub.com},label=spider]
 
 # -*- coding: utf-8 -*-
 import scrapy
@@ -74,7 +73,8 @@ class GithubSpiderSpider(scrapy.Spider):
 		for repo_name in repo_names:
 		self.logger.info('Working with repo: {}'.format(repo_name))
 		code_search_url = 'https://api.github.com/search/code?
-			q=Input+in:file+language:csharp+repo:{}'.format(repo_name)
+			q=Input+in:file+language:csharp+repo:{}'
+			.format(repo_name)
 		code_response = self.get(code_search_url)
 		if not code_response:
 			self.logger.info('something wrong with header, continue...')
@@ -261,8 +261,9 @@ return s_Instance;
 \begin{lstlisting}[caption={Метод инъекции зависимостей в экземпляр класса типа},label=injectType]
 public static void InjectType(Type t)
 {
-if (!ContainsAnyAttributeOfType(t.GetCustomAttributes(false), typeof(InjectableAttribute))) return;
-foreach (var fi in t.GetFields())
+if (!ContainsAnyAttributeOfType(
+t.GetCustomAttributes(false), typeof(InjectableAttribute))) return;
+	foreach (var fi in t.GetFields())
 {
 ...
 if (temp.ComponentType == null && isScenePathEmpty) temp.ComponentType = fi.FieldType;
@@ -412,7 +413,8 @@ namespace ATF
         {
             base.Start();
             m_InputOverride = AtfInput.BASE_INPUT;
-            DependencyInjector.InjectType(m_InputOverride.GetType());
+            DependencyInjector
+            	.InjectType(m_InputOverride.GetType());
         }
 ...
 }
