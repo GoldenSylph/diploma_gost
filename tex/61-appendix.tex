@@ -1,4 +1,5 @@
 \chapter{Листинги}
+\section{Исходный код класса обработки веб-страниц проектов с сайта GitHub.com}
 \begin{lstlisting}[caption={Исходный код класса обработки веб-страниц проектов с сайта GitHub.com},label=spider]
 
 # -*- coding: utf-8 -*-
@@ -111,7 +112,8 @@ class GithubSpiderSpider(scrapy.Spider):
 		self.logger.info('Data gathered:\n{}'.format(new_data))
 		self.main_data.to_csv(self.file_name)
 \end{lstlisting}
-
+\newpage
+\section{Утилита для сбора собранных spider-программой данных воедино}
 \begin{lstlisting}[caption={Утилита для сбора собранных spider-программой данных воедино},label=form_main_data]
 import pandas as pd
 import seaborn as sns
@@ -133,7 +135,8 @@ sns.scatterplot(x=whole_data.index, y='method_invocations', data=whole_data, hue
 plt.show()
 plt.clf()
 \end{lstlisting}
-
+\newpage
+\section{Утилита для проведения бутстрапа и параллельных расчётов границ интервала среднего}
 \begin{lstlisting}[caption={Утилита для проведения бутстрапа и параллельных расчётов границ интервала среднего},label=bootstrap_experiment]
 
 import math as m
@@ -196,8 +199,8 @@ if __name__ == '__main__':
 
 
 \end{lstlisting}
-
-
+\newpage
+\section{Интерфейс модуля загрузчика хранилища записей}
 \begin{lstlisting}[caption={Интерфейс модуля загрузчика хранилища записей},label=iSaver]
 public interface IATFActionStorageSaver : IATFInitializable
 {
@@ -211,7 +214,8 @@ public interface IATFActionStorageSaver : IATFInitializable
 	List<TreeViewItem> GetSavedRecordDetails(string recordName);
 }
 \end{lstlisting}
-
+\newpage
+\section{Интерфейс модуля хранилища записей}
 \begin{lstlisting}[caption={Интерфейс модуля хранилища записей},label=iStorage]
 public interface IATFActionStorage : IATFInitializable
 {
@@ -230,7 +234,8 @@ public interface IATFActionStorage : IATFInitializable
 	List<TreeViewItem> GetSavedActions(string recordName);
 }
 \end{lstlisting}
-
+\newpage
+\section{Бизнес-логика MonoSingleton<T>}
 \begin{lstlisting}[caption={Бизнес-логика MonoSingleton<T>},label=monoSingleton]
 public class MonoSingleton<T> : MonoBehaviour where T : MonoBehaviour
 {
@@ -257,83 +262,86 @@ return s_Instance;
 ...
 }
 \end{lstlisting}
-
+\newpage
+\section{Метод инъекции зависимостей в экземпляр класса типа}
 \begin{lstlisting}[caption={Метод инъекции зависимостей в экземпляр класса типа},label=injectType]
 public static void InjectType(Type t)
 {
-if (!ContainsAnyAttributeOfType(
-t.GetCustomAttributes(false), typeof(InjectableAttribute))) return;
-	foreach (var fi in t.GetFields())
-{
-...
-if (temp.ComponentType == null && isScenePathEmpty) temp.ComponentType = fi.FieldType;
-...
-if (!isScenePathEmpty)
-{
-var hierarchyAndComponent = GetHierarchyPathAndComponentName(temp.ScenePath);
-if (!hierarchyAndComponent.Valid)
-{
-... continue;
-} 
-gameObjectContainingObjectToInject = GameObject.Find(hierarchyAndComponent.Result[0]);
-if (!gameObjectContainingObjectToInject)
-{
-... continue;
-}
-objectToInject = gameObjectContainingObjectToInject
-.GetComponent(hierarchyAndComponent.Result[1]);
-}
-else
-{
-objectToInject = FindObjectOfType(temp.ComponentType);
-if (objectToInject)
-{
-gameObjectContainingObjectToInject = GameObject.Find(objectToInject.name);
-}
-if (!gameObjectContainingObjectToInject && !temp.LookInScene)
-{
-objectToInject = Activator.CreateInstance(temp.ComponentType) as UnityEngine.Object;
-if (!objectToInject)
-{
-... continue;
-} ...
-}
-}
-if (!gameObjectContainingObjectToInject && objectToInject == null && temp.LookInScene)
-{
-... continue;
-}
-...
-dynamic typeToWhichInjected = FindObjectOfType(t.GetTypeInfo());
-if (typeToWhichInjected == null)
-{
-... continue;
-}
-fi.SetValue(typeToWhichInjected, objectToInject);
-...
+	if (!ContainsAnyAttributeOfType(
+	t.GetCustomAttributes(false), typeof(InjectableAttribute))) return;
+		foreach (var fi in t.GetFields())
+	{
+	...
+	if (temp.ComponentType == null && isScenePathEmpty) temp.ComponentType = fi.FieldType;
+	...
+	if (!isScenePathEmpty)
+	{
+		var hierarchyAndComponent = GetHierarchyPathAndComponentName(temp.ScenePath);
+		if (!hierarchyAndComponent.Valid)
+		{
+			... continue;
+		} 
+		gameObjectContainingObjectToInject = GameObject.Find(hierarchyAndComponent.Result[0]);
+		if (!gameObjectContainingObjectToInject)
+		{
+			... continue;
+		}
+		objectToInject = gameObjectContainingObjectToInject
+		.GetComponent(hierarchyAndComponent.Result[1]);
+	}
+	else
+	{
+		objectToInject = FindObjectOfType(temp.ComponentType);
+		if (objectToInject)
+		{
+			gameObjectContainingObjectToInject = GameObject.Find(objectToInject.name);
+		}
+		if (!gameObjectContainingObjectToInject && !temp.LookInScene)
+		{
+			objectToInject = Activator.CreateInstance(temp.ComponentType) as UnityEngine.Object;
+			if (!objectToInject)
+			{
+				... continue;
+			} ...
+		}
+	}
+	if (!gameObjectContainingObjectToInject && objectToInject == null && temp.LookInScene)
+	{
+	... continue;
+	}
+	...
+	dynamic typeToWhichInjected = FindObjectOfType(t.GetTypeInfo());
+	if (typeToWhichInjected == null)
+	{
+	... continue;
+	}
+	fi.SetValue(typeToWhichInjected, objectToInject);
+	...
 }
 \end{lstlisting}
-
+\newpage
+\section{Бизнес-логика базовой системы интеграции}
 \begin{lstlisting}[caption={Бизнес-логика базовой системы интеграции},label=initializer]
 public class ATFInitializer : MonoBehaviour
 {
-private void Awake()
-{
-IATFInitializable[] ALL_SYSTEMS = {
-ATFQueueBasedRecorder.Instance, 
-ATFDictionaryBasedActionStorage.Instance,
-ATFPlayerPrefsBasedActionStorageSaver.Instance
-};
-foreach (IATFInitializable i in ALL_SYSTEMS)
-{
-i.Initialize();
-}
-DependencyInjector.Instance.Initialize("ATF");
-DependencyInjector.Instance.Inject();
-}
+	private void Awake()
+	{
+		IATFInitializable[] ALL_SYSTEMS = {
+			ATFQueueBasedRecorder.Instance, 
+			ATFDictionaryBasedActionStorage.Instance,
+			ATFPlayerPrefsBasedActionStorageSaver.Instance
+		};
+		foreach (IATFInitializable i in ALL_SYSTEMS)
+		{
+			i.Initialize();
+		}
+		DependencyInjector.Instance.Initialize("ATF");
+		DependencyInjector.Instance.Inject();
+	}
 }
 \end{lstlisting}
-
+\newpage
+\section{Бизнес-логика системы симуляции и перехвата ввода}
 \begin{lstlisting}[caption={Бизнес-логика системы симуляции и перехвата ввода},label=input]
 [Injectable]
 [Serializable]
@@ -371,10 +379,10 @@ public static bool anyKeyDown => Intercept(Input.anyKeyDown, FakeInput.ANY_KEY_D
 ...
 }
 \end{lstlisting}
-
+\newpage
+\section{Интерфейc модуля записи}
 \begin{lstlisting}[caption={Интерфейc модуля записи},label=iRecorder]
 using ATF.Scripts.Helper;
-
 namespace ATF.Scripts.Recorder
 {
     public interface IAtfRecorder : IAtfGetSetRecordName
@@ -399,11 +407,10 @@ namespace ATF.Scripts.Recorder
         void SetInputStopped(bool value);
         void Record(FakeInput kind, object input, object fakeInputParameter);
         object GetLastInput(FakeInput kind, object fakeInputParameter);
-        void SetLastInput(FakeInput kind, object realInput, object fakeInputParameter);
-    }
-}
+        void SetLastInput(FakeInput kind, object realInput, object fakeInputParameter); ...
 \end{lstlisting}
-
+\newpage
+\section{Пользовательский модуль ввода для ATFInput}
 \begin{lstlisting}[caption={Пользовательский модуль ввода для ATFInput},label=inputModule]
 namespace ATF
 {
@@ -417,13 +424,12 @@ namespace ATF
             	.InjectType(m_InputOverride.GetType());
         }
 ...
-}
 \end{lstlisting}
-
+\newpage
+\section{Интерфейс модуля интеграции в готовую кодовую базу}
 \begin{lstlisting}[caption={Интерфейс модуля интеграции в готовую кодовую базу},label=iIntegrator]
 using System.Collections.Generic;
 using ATF.Scripts.Helper;
-
 namespace ATF.Scripts.Integration.Interfaces
 {
 	public interface IAtfIntegrator : IAtfGetSetRecordName
@@ -437,7 +443,8 @@ namespace ATF.Scripts.Integration.Interfaces
 	}
 }
 \end{lstlisting}
-
+\newpage
+\section{Интерфейс модуля упаковки хранилища данных}
 \begin{lstlisting}[caption={Интерфейс модуля упаковки хранилища данных},label=iPacker]
 using System.Collections.Generic;
 using ATF.Scripts.Storage.Utils;
@@ -452,35 +459,32 @@ namespace ATF.Scripts.Storage.Interfaces
 	}
 }
 \end{lstlisting}
-
-\begin{lstlisting}[caption={Пример изменения тела метода и параметра класса Input в классе-арбитре AtfInput},label=atf_methods_refactor_example]
+\newpage
+\section{Пример изменения тела метода и параметра класса Input в классе-арбитре ATFInput}
+\begin{lstlisting}[caption={Пример изменения тела метода и параметра класса Input в классе-арбитре ATFInput},label=atf_methods_refactor_example]
 //CSharp 7.0
 public static bool simulateMouseWithTouches
 {
 	get => Intercept(Input.simulateMouseWithTouches, 	FakeInput.SIMULATE_MOUSE_WITH_TOUCHES, "Simulate mouse with touches");
 	set => Input.simulateMouseWithTouches = value;
 }
-
 //CSharp 6.0
 public static bool simulateMouseWithTouches
 {
 	get { return Intercept(Input.simulateMouseWithTouches, 	FakeInput.SIMULATE_MOUSE_WITH_TOUCHES, "Simulate mouse with touches"); }
 	set { Input.simulateMouseWithTouches = value; }
 }
-
 ...
-
 //CSharp 7.0
 public static bool GetMouseButton(int button) => Intercept(Input.GetMouseButton(button), FakeInput.GET_MOUSE_BUTTON, button);
 
 //CSharp 6.0
 public static bool GetMouseButton(int button)
 {
-	return Intercept(Input.GetMouseButton(button), FakeInput.GET_MOUSE_BUTTON, button);
-}
+	return Intercept(Input.GetMouseButton(button), FakeInput.GET_MOUSE_BUTTON, button); ...
 \end{lstlisting}
-
-
+\chapter{Алгоритмы}
+\section{Работа инициализатора решения}
 \begin{algorithm}
 	\caption{Работа инициализатора решения}\label{alg:initializer}
 	\begin{algorithmic}
@@ -492,7 +496,8 @@ public static bool GetMouseButton(int button)
 		\State $DependencyInjector.InjectIntoNamespace('ATF')$
 	\end{algorithmic}
 \end{algorithm}
-
+\newpage
+\section{Перехват и симуляция для Input.anyKeyDown}
 \begin{algorithm}
 	\caption{Перехват и симуляция для Input.anyKeyDown}\label{alg:input}
 	\begin{algorithmic}
