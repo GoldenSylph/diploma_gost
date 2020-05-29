@@ -451,6 +451,34 @@ namespace ATF.Scripts.Storage.Interfaces
 }
 \end{lstlisting}
 
+\begin{lstlisting}[caption={Пример изменения тела метода и параметра класса Input в классе-арбитре AtfInput},label=atf_methods_refactor_example]
+//CSharp 7.0
+public static bool simulateMouseWithTouches
+{
+	get => Intercept(Input.simulateMouseWithTouches, 	FakeInput.SIMULATE_MOUSE_WITH_TOUCHES, "Simulate mouse with touches");
+	set => Input.simulateMouseWithTouches = value;
+}
+
+//CSharp 6.0
+public static bool simulateMouseWithTouches
+{
+	get { return Intercept(Input.simulateMouseWithTouches, 	FakeInput.SIMULATE_MOUSE_WITH_TOUCHES, "Simulate mouse with touches"); }
+	set { Input.simulateMouseWithTouches = value; }
+}
+
+...
+
+//CSharp 7.0
+public static bool GetMouseButton(int button) => Intercept(Input.GetMouseButton(button), FakeInput.GET_MOUSE_BUTTON, button);
+
+//CSharp 6.0
+public static bool GetMouseButton(int button)
+{
+	return Intercept(Input.GetMouseButton(button), FakeInput.GET_MOUSE_BUTTON, button);
+}
+\end{lstlisting}
+
+
 \begin{algorithm}
 	\caption{Работа инициализатора решения}\label{alg:initializer}
 	\begin{algorithmic}
