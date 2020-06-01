@@ -1,0 +1,526 @@
+\chapter{Листинги}
+\section{Исходный код класса обработки веб-страниц проектов с сайта GitHub.com}
+\begin{lstlisting}[caption={Исходный код класса обработки веб-страниц проектов с сайта GitHub.com},label=spider]
+
+# -*- coding: utf-8 -*-
+import scrapy
+import requests
+import json
+import base64
+import re
+import time
+import pandas as pd
+class GithubSpiderSpider(scrapy.Spider):
+
+	name = 'github-spider'
+	main_data = pd.DataFrame(columns=['repo_name', 'method_invocations'])
+	file_name = 'main_data_most_forks.csv'
+	config = False
+	recently_updated_url = 
+	'https://github.com/search?o=desc&p={}
+		&q=unity+language%3AC%23&s=updated&type=Repositories'
+	most_stars_url = 
+	'https://github.com/search?o=desc&p={}
+		&q=unity+language%3AC%23&s=stars&type=Repositories'
+	most_forks_url = 
+	'https://github.com/search?o=desc&p={}
+		&q=unity+language%3AC%23&s=forks&type=Repositories'
+	best_match_url = 
+	'https://github.com/search?p={}
+		&q=language%3Acsharp+unity&type=Repositories'
+
+	def start_requests(self):
+		urls = [self.most_forks_url.format(i + 1) for i in range(101)]
+		for url in urls:
+			yield scrapy.Request(url=url, callback=self.parse)
+	
+	def auth_data(self):
+		if self.config:
+			return (self.config['login'], self.config['password'])
+		with open('github_config.json', 'r', encoding='utf-8') as github_file:
+			self.config = json.load(github_file)
+			return (self.config['login'], self.config['password'])
+		
+	def get(self, url):
+		result = requests.get(url, auth=self.auth_data())
+		if result.status_code == 403:
+			header_name = 'X-RateLimit-Reset'
+			if header_name in result.headers:
+				reset_time = float(result.headers[header_name])
+				sleep_time = reset_time - time.time()
+				if sleep_time < 0:
+					self.logger.info('Sleep time is negative, adjusting to 1...')
+					sleep_time = 1
+				self.logger.info('Exceeded rate limit. Waiting for: {}'.format(sleep_time))
+				time.sleep(sleep_time)
+				result = requests.get(url, auth=auth_data)
+			else:
+				return False
+				self.logger.info('{}, status: {}'.format(result.headers, result.status_code))
+		return result
+	
+	def get_json(self, response):
+		try:
+			return response.json()
+		except:
+			self.logger.info(traceback.format_exc())
+			return False
+	
+	def closed(self, reason):
+		self.logger.info('Done. Specified reason: {}'.format(str(reason)))
+	
+	def parse(self, response):
+		repo_names = [r[1:] for r in response.xpath('//div[@class="f4 text-normal"]/a/@href').extract()]
+		for repo_name in repo_names:
+		self.logger.info('Working with repo: {}'.format(repo_name))
+		code_search_url = 'https://api.github.com/search/code?
+			q=Input+in:file+language:csharp+repo:{}'
+			.format(repo_name)
+		code_response = self.get(code_search_url)
+		if not code_response:
+			self.logger.info('something wrong with header, continue...')
+			continue
+		code_data = self.get_json(code_response)
+		if not code_data:
+			continue
+		method_invokations_count = 0
+		code_urls = [code_item['url'] for code_item in code_data['items']]
+		for code_url in code_urls:
+			self.logger.info('Source url: {}'.format(code_url))
+			source_details_response = self.get(code_url)
+			if not source_details_response:
+				self.logger.info('something wrong with header in source details response, continue...')
+				continue
+			source_details_data = self.get_json(source_details_response)
+			if not source_details_data:
+				continue
+			if 'message' in source_details_data:
+				self.logger.info(source_details_data['message'])
+				continue
+			try:
+				source = 
+				base64.b64decode(source_details_data['content']
+					.encode('utf-8')).decode('utf-8')
+			except:
+				self.logger.info(traceback.format_exc())
+				continue
+			method_invokations_count_in_source = 
+				len(re.findall(r'[(\[(\s,=\+\-\*/\?&|]Input\.', source))
+			method_invokations_count += method_invokations_count_in_source
+		new_data = pd.DataFrame({'repo_name': repo_name, 'method_invocations': method_invokations_count}, index=[0])
+		self.main_data = self.main_data.append(new_data, ignore_index=True)
+		self.logger.info('Data gathered:\n{}'.format(new_data))
+		self.main_data.to_csv(self.file_name)
+\end{lstlisting}
+\newpage
+\section{Утилита для сбора собранных spider-программой данных воедино}
+\begin{lstlisting}[caption={Утилита для сбора собранных spider-программой данных воедино},label=form_main_data]
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+sns.set(style="white", context="talk")
+whole_data = pd.DataFrame(columns=['repo_name', 'method_invocations', 'filter'])
+metadata = [('main_data_best_match.csv', 'best_match'),
+('main_data_most_stars.csv', 'most_stars'),
+('main_data_most_forks.csv', 'most_forks'),
+('main_data_recently_updated.csv', 'recently_updated')]
+for data in metadata:
+	new_data = pd.read_csv(data[0], index_col=0)
+	new_data['filter'] = data[1]
+	whole_data = whole_data.append(new_data, ignore_index=True)
+whole_data['filter'] = whole_data['filter'] + whole_data.duplicated(subset='repo_name').apply(str)
+print(whole_data)
+whole_data.to_csv('main_data.csv')
+sns.scatterplot(x=whole_data.index, y='method_invocations', data=whole_data, hue='filter')
+plt.show()
+plt.clf()
+\end{lstlisting}
+\newpage
+\section{Утилита для проведения бутстрапа и параллельных расчётов границ интервала среднего}
+\begin{lstlisting}[caption={Утилита для проведения бутстрапа и параллельных расчётов границ интервала среднего},label=bootstrap_experiment]
+
+import math as m
+import pandas as pd
+import multiprocessing as mp
+import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib
+
+def stat(x):
+return round(x.mean(), 3)
+
+if __name__ == '__main__':
+
+	whole_data = pd.read_csv('main_data.csv')
+	
+	R = 99509
+	n = len(whole_data)
+	confidence = 90
+	specific_data = whole_data['method_invocations']
+	
+	process_count = mp.cpu_count()
+	chunk_size = 1000
+	print('Processes: {}, chunksize: {}'.format(process_count, chunk_size))
+	
+	with mp.Pool(process_count) as pool:
+		boot_data =
+		pd.Series(pool.map(stat, 
+			[specific_data.sample(n, replace=True) for i in range(R)], 
+				chunksize=chunk_size))
+	
+	boot_data_len = len(boot_data)
+	cut_percent = m.ceil((1 - confidence / 100) / 2)
+	cut = round(boot_data_len * cut_percent / 100)
+	middle_cuts = [cut, boot_data_len - cut]
+	tail_cut = boot_data_len - cut
+	print('boot_data_len: {}, cut_percent: {}, cut: {}, middle_cuts: {}, tail_cut: {}'.format(boot_data_len, cut_percent, cut, middle_cuts, tail_cut))
+	head = boot_data[:cut]
+	middle = boot_data[middle_cuts[0]:middle_cuts[1]]
+	tail = boot_data[tail_cut:]
+	main_data = pd.DataFrame(columns=['stat', 'kind'])
+	main_data = main_data.append(pd.DataFrame({'stat': head, 'kind': 'head'}), ignore_index=True)
+	main_data = main_data.append(pd.DataFrame({'stat': middle, 'kind': 'interval'}), ignore_index=True)
+	main_data = main_data.append(pd.DataFrame({'stat': tail, 'kind': 'tail'}), ignore_index=True)
+	sns.jointplot(x=main_data.index, y=main_data['stat'], kind='hex')
+	plt.axhline(y=main_data.at[cut, 'stat'], color='r')
+	plt.axhline(y=main_data.at[tail_cut, 'stat'], color='r')
+	plt.text(cut, main_data.at[cut, 'stat'] + 0.01, 'L: {}'.format(main_data.at[cut, 'stat']), fontsize=12)
+	plt.text(cut, main_data.at[tail_cut, 'stat'] + 0.01, 'U: {}'.format(main_data.at[tail_cut, 'stat']), fontsize=12)
+	plot_backend = matplotlib.get_backend()
+	mng = plt.get_current_fig_manager()
+	if plot_backend == 'TkAgg':
+		mng.resize(*mng.window.maxsize())
+	elif plot_backend == 'wxAgg':
+		mng.frame.Maximize(True)
+	elif plot_backend == 'Qt4Agg':
+		mng.window.showMaximized()
+	plt.savefig('experiment.png')
+	plt.show()
+
+
+\end{lstlisting}
+\newpage
+\section{Интерфейс модуля загрузчика хранилища записей}
+\begin{lstlisting}[caption={Интерфейс модуля загрузчика хранилища записей},label=iSaver]
+public interface IATFActionStorageSaver : IATFInitializable
+{
+	void SaveRecord();
+	void LoadRecord();
+	void ScrapRecord();
+	
+	IEnumerable GetActions();
+	void SetActions(IEnumerable actionEnumerable);
+	List<TreeViewItem> GetSavedNames();
+	List<TreeViewItem> GetSavedRecordDetails(string recordName);
+}
+\end{lstlisting}
+\newpage
+\section{Интерфейс модуля хранилища записей}
+\begin{lstlisting}[caption={Интерфейс модуля хранилища записей},label=iStorage]
+public interface IATFActionStorage : IATFInitializable
+{
+	object GetPartOfRecord(FakeInput kind, object fakeInputParameter);
+	void Enqueue(string recordName, FakeInput kind, object fakeInputParameter, AtfAction atfAction);
+	AtfAction Dequeue(string recordName, FakeInput kind, object fakeInputParameter);
+	AtfAction Peek(string recordName, FakeInput kind, object fakeInputParameter);
+	bool PrepareToPlayRecord(string recordName);
+	void ClearPlayStorage();
+	void SaveStorage();
+	void LoadStorage();
+	void ScrapSavedStorage();
+	List<TreeViewItem> GetSavedRecordNames();
+	List<TreeViewItem> GetCurrentRecordNames();
+	List<TreeViewItem> GetCurrentActions(string recordName);
+	List<TreeViewItem> GetSavedActions(string recordName);
+}
+\end{lstlisting}
+\newpage
+\section{Бизнес-логика MonoSingleton<T>}
+\begin{lstlisting}[caption={Бизнес-логика MonoSingleton<T>},label=monoSingleton]
+public class MonoSingleton<T> : MonoBehaviour where T : MonoBehaviour
+{
+	private static T s_Instance;
+	private static bool s_IsDestroyed;
+	public static T Instance
+	{
+	get
+	{
+	if (s_IsDestroyed)
+	return null;
+	if (s_Instance == null)
+	{
+	s_Instance = FindObjectOfType(typeof(T)) as T;
+	
+	if (s_Instance == null)
+	{
+	var gameObject = new GameObject(typeof(T).Name); 
+	DontDestroyOnLoad(gameObject);
+	s_Instance = gameObject.AddComponent(typeof(T)) as T;
+	}
+}
+return s_Instance;
+...
+}
+\end{lstlisting}
+\newpage
+\section{Метод инъекции зависимостей в экземпляр класса типа}
+\begin{lstlisting}[caption={Метод инъекции зависимостей в экземпляр класса типа},label=injectType]
+public static void InjectType(Type t)
+{
+	if (!ContainsAnyAttributeOfType(
+	t.GetCustomAttributes(false), typeof(InjectableAttribute))) return;
+		foreach (var fi in t.GetFields())
+	{
+	...
+	if (temp.ComponentType == null && isScenePathEmpty) temp.ComponentType = fi.FieldType;
+	...
+	if (!isScenePathEmpty)
+	{
+		var hierarchyAndComponent = GetHierarchyPathAndComponentName(temp.ScenePath);
+		if (!hierarchyAndComponent.Valid)
+		{
+			... continue;
+		} 
+		gameObjectContainingObjectToInject = GameObject.Find(hierarchyAndComponent.Result[0]);
+		if (!gameObjectContainingObjectToInject)
+		{
+			... continue;
+		}
+		objectToInject = gameObjectContainingObjectToInject
+		.GetComponent(hierarchyAndComponent.Result[1]);
+	}
+	else
+	{
+		objectToInject = FindObjectOfType(temp.ComponentType);
+		if (objectToInject)
+		{
+			gameObjectContainingObjectToInject = GameObject.Find(objectToInject.name);
+		}
+		if (!gameObjectContainingObjectToInject && !temp.LookInScene)
+		{
+			objectToInject = Activator.CreateInstance(temp.ComponentType) as UnityEngine.Object;
+			if (!objectToInject)
+			{
+				... continue;
+			} ...
+		}
+	}
+	if (!gameObjectContainingObjectToInject && objectToInject == null && temp.LookInScene)
+	{
+	... continue;
+	}
+	...
+	dynamic typeToWhichInjected = FindObjectOfType(t.GetTypeInfo());
+	if (typeToWhichInjected == null)
+	{
+	... continue;
+	}
+	fi.SetValue(typeToWhichInjected, objectToInject);
+	...
+}
+\end{lstlisting}
+\newpage
+\section{Бизнес-логика базовой системы интеграции}
+\begin{lstlisting}[caption={Бизнес-логика базовой системы интеграции},label=initializer]
+public class ATFInitializer : MonoBehaviour
+{
+	private void Awake()
+	{
+		IATFInitializable[] ALL_SYSTEMS = {
+			ATFQueueBasedRecorder.Instance, 
+			ATFDictionaryBasedActionStorage.Instance,
+			ATFPlayerPrefsBasedActionStorageSaver.Instance
+		};
+		foreach (IATFInitializable i in ALL_SYSTEMS)
+		{
+			i.Initialize();
+		}
+		DependencyInjector.Instance.Initialize("ATF");
+		DependencyInjector.Instance.Inject();
+	}
+}
+\end{lstlisting}
+\newpage
+\section{Бизнес-логика системы симуляции и перехвата ввода}
+\begin{lstlisting}[caption={Бизнес-логика системы симуляции и перехвата ввода},label=input]
+[Injectable]
+[Serializable]
+[AtfSystem]
+public class ATFInput : MonoSingleton<T>, IBaseInput
+{
+[Inject(typeof(ATFQueueBasedRecorder))]
+public static readonly IATFRecorder RECORDER;
+[Inject(typeof(ATFDictionaryBasedActionStorage))]
+public static readonly IATFActionStorage STORAGE;
+[Inject(typeof(BaseInput))]
+public static readonly BaseInput BASE_INPUT;
+...
+private static object RealOrFakeInputOrRecord(object realInput, object fakeInput, object fip, FakeInput kind)
+{ ... }
+private static object GetCurrentFakeInput(FakeInput inputKind, object fip)
+{
+return STORAGE.GetPartOfRecord(inputKind, fip);
+}
+...
+private static T Intercept<T>(T realInput, FakeInput fakeInputKind, object 	fakeInputParameter = null)
+{
+    if (fakeInputParameter == null)
+    {
+        fakeInputParameter = "EMPTY FAKE INPUT PARAMETER";
+    }
+    dynamic result = RealOrFakeInputOrRecord(realInput, fakeInputParameter, fakeInputKind);
+    if (result is string)
+    {
+        Debug.Log(result);
+    }
+    return result;
+}
+public static bool anyKeyDown => Intercept(Input.anyKeyDown, FakeInput.ANY_KEY_DOWN, false);
+...
+}
+\end{lstlisting}
+\newpage
+\section{Интерфейc модуля записи}
+\begin{lstlisting}[caption={Интерфейc модуля записи},label=iRecorder]
+using ATF.Scripts.Helper;
+namespace ATF.Scripts.Recorder
+{
+    public interface IAtfRecorder : IAtfGetSetRecordName
+    {
+        bool IsRecording();
+        bool IsPlaying();
+        bool IsRecordingPaused();
+        bool IsPlayPaused();
+        bool IsInputStopped();
+        void PlayRecord();
+        void PausePlay();
+        void ContinuePlay();
+        void StopPlay();
+        void StartRecord();
+        void PauseRecord();
+        void ContinueRecord();
+        void StopRecord();
+        void SetRecording(bool value);
+        void SetPlaying(bool value);
+        void SetRecordingPaused(bool value);
+        void SetPlayPaused(bool value);
+        void SetInputStopped(bool value);
+        void Record(FakeInput kind, object input, object fakeInputParameter);
+        object GetLastInput(FakeInput kind, object fakeInputParameter);
+        void SetLastInput(FakeInput kind, object realInput, object fakeInputParameter); ...
+\end{lstlisting}
+\newpage
+\section{Пользовательский модуль ввода для ATFInput}
+\begin{lstlisting}[caption={Пользовательский модуль ввода для ATFInput},label=inputModule]
+namespace ATF
+{
+	public class ATFStandaloneInputManager : StandaloneInputModule
+	{
+		protected override void Start()
+        {
+            base.Start();
+            m_InputOverride = AtfInput.BASE_INPUT;
+            DependencyInjector
+            	.InjectType(m_InputOverride.GetType());
+        }
+...
+\end{lstlisting}
+\newpage
+\section{Интерфейс модуля интеграции в готовую кодовую базу}
+\begin{lstlisting}[caption={Интерфейс модуля интеграции в готовую кодовую базу},label=iIntegrator]
+using System.Collections.Generic;
+using ATF.Scripts.Helper;
+namespace ATF.Scripts.Integration.Interfaces
+{
+	public interface IAtfIntegrator : IAtfGetSetRecordName
+	{
+		void SetUris(IEnumerable<string> filePaths);
+		void Integrate();
+		void IntegrateAndReplace();
+		void IntegrateAll();
+		void SaveUris();
+		IEnumerable<string> LoadUris();
+	}
+}
+\end{lstlisting}
+\newpage
+\section{Интерфейс модуля упаковки хранилища данных}
+\begin{lstlisting}[caption={Интерфейс модуля упаковки хранилища данных},label=iPacker]
+using System.Collections.Generic;
+using ATF.Scripts.Storage.Utils;
+using UnityEngine;
+namespace ATF.Scripts.Storage.Interfaces
+{
+	public interface IAtfPacker
+	{
+		List<Record> Pack(Dictionary<string, Dictionary<FakeInput, Dictionary<object, AtfActionRleQueue>>> input);
+		Dictionary<string, Dictionary<FakeInput, Dictionary<object, AtfActionRleQueue>>> Unpack(Slot slot);
+		string ValidatePacked(List<Record> packed);
+	}
+}
+\end{lstlisting}
+\newpage
+\section{Пример изменения тела метода и параметра класса Input в классе-арбитре ATFInput}
+\begin{lstlisting}[caption={Пример изменения тела метода и параметра класса Input в классе-арбитре ATFInput},label=atf_methods_refactor_example]
+//CSharp 7.0
+public static bool simulateMouseWithTouches
+{
+	get => Intercept(Input.simulateMouseWithTouches, 	FakeInput.SIMULATE_MOUSE_WITH_TOUCHES, "Simulate mouse with touches");
+	set => Input.simulateMouseWithTouches = value;
+}
+//CSharp 6.0
+public static bool simulateMouseWithTouches
+{
+	get { return Intercept(Input.simulateMouseWithTouches, 	FakeInput.SIMULATE_MOUSE_WITH_TOUCHES, "Simulate mouse with touches"); }
+	set { Input.simulateMouseWithTouches = value; }
+}
+...
+//CSharp 7.0
+public static bool GetMouseButton(int button) => Intercept(Input.GetMouseButton(button), FakeInput.GET_MOUSE_BUTTON, button);
+
+//CSharp 6.0
+public static bool GetMouseButton(int button)
+{
+	return Intercept(Input.GetMouseButton(button), FakeInput.GET_MOUSE_BUTTON, button); ...
+\end{lstlisting}
+\chapter{Алгоритмы}
+\section{Работа инициализатора решения}
+\begin{algorithm}
+	\caption{Работа инициализатора решения}\label{alg:initializer}
+	\begin{algorithmic}
+		\State $allSystems \gets IAtfInitializable[3]$
+		\State $allSystems[0] \gets Recorder.Instance$
+		\State $allSystems[1] \gets Storage.Instance$
+		\State $allSystems[2] \gets Saver.Instance$
+		\ForAll{system in allSystems} \State{system.Initialize()} \EndFor
+		\State $DependencyInjector.InjectIntoNamespace('ATF')$
+	\end{algorithmic}
+\end{algorithm}
+\newpage
+\section{Перехват и симуляция для Input.anyKeyDown}
+\begin{algorithm}
+	\caption{Перехват и симуляция для Input.anyKeyDown}\label{alg:input}
+	\begin{algorithmic}
+		\Procedure{AtfInput.anyKeyDown}{}
+		\State \textbf{return} Intercept(Input.anyKeyDown, 
+		\State GetCurrentFakeInput())
+		\EndProcedure
+		\Procedure{Intercept}{RealInput, FakeInput}
+		\State \textbf{dynamic} result := RealOrFakeInputOrRecord(RealInput, FakeInput)
+		\If{result is string}
+		\State \textbf{throw} new Exception(\$"Deserialization failed: \{result\}")
+		\EndIf
+		\State \textbf{return} result
+		\EndProcedure
+		\Procedure{RealOrFakeInputOrRecord}{RealInput, FakeInput}
+		\If{is Recording}
+		\State Recorder.Record(RealInput)
+		\State \textbf{return} RealInput
+		\ElsIf{is Playing}
+		\State \textbf{return} FakeInput
+		\Else
+		\State \textbf{return} RealInput
+		\EndIf
+		\EndProcedure
+	\end{algorithmic}
+\end{algorithm}
